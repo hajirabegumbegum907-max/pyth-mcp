@@ -1,0 +1,5 @@
+node_modules/
+*.tgz
+.pyth-mcp/
+coverage/
+.DS_Store

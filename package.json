@@ -1,0 +1,46 @@
+{
+  "name": "pyth-mcp",
+  "version": "0.1.1",
+  "description": "Zero-dependency Pyth Network Hermes price feeds, feed catalog, TTL cache, CLI, and MCP stdio server",
+  "license": "MIT",
+  "main": "./index.js",
+  "bin": {
+    "pyth-mcp": "./bin/cli.js"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./lib/client.js",
+    "./cache": "./lib/cache.js",
+    "./config": "./lib/config.js",
+    "./mcp-server": "./mcp-server.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "index.js",
+    "mcp-server.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.0"
+  },
+  "keywords": [
+    "pyth",
+    "pyth-network",
+    "oracle",
+    "hermes",
+    "price-feed",
+    "mcp",
+    "model-context-protocol"
+  ],
+  "scripts": {
+    "start": "node mcp-server.js",
+    "mcp-start": "node mcp-server.js",
+    "test": "node --test test/*.test.js",
+    "test:packed": "node test/packed-artifact.js",
+    "test:live": "node test/live-smoke.js",
+    "test:all": "npm test && npm run test:packed"
+  }
+}
