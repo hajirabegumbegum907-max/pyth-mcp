@@ -132,11 +132,46 @@ test('cache batches repeated writes until flush or close', () => {
   restored.close();
 });
 
-test('corrupt cache files are reported instead of overwritten', () => {
+test('corrupt cache files are quarantined and the cache self-heals', () => {
   const filePath = path.join(root, 'cache.json');
   fs.writeFileSync(filePath, '{broken');
   const cache = new TTLCache({ filePath });
-  assert.throws(() => cache.peek('key'), /Cannot parse cache/);
+  assert.equal(cache.peek('key'), undefined);
+  assert.equal(cache.size, 0);
+  cache.set('fresh', 'value');
+  cache.close();
+  const files = fs.readdirSync(root).filter((name) => name.startsWith('cache.json.corrupt-'));
+  assert.equal(files.length, 1);
+  const recovered = new TTLCache({ filePath });
+  assert.equal(recovered.peek('fresh'), 'value');
+  recovered.close();
+});
+
+test('cache recovers from invalid format without failing', () => {
+  const filePath = path.join(root, 'cache.json');
+  fs.writeFileSync(filePath, '{"version":99,"entries":{}}');
+  const cache = new TTLCache({ filePath });
+  assert.equal(cache.size, 0);
+  cache.close();
+  assert.ok(fs.readdirSync(root).some((name) => name.startsWith('cache.json.corrupt-')));
+});
+
+test('get without an explicit ttl consults the cache default ttl', () => {
+  let now = 1000;
+  const cache = new TTLCache({ filePath: path.join(root, 'default-ttl.json'), now: () => now, defaultTtlMs: 100, flushDelayMs: 1000 });
+  cache.set('key', 'value');
+  assert.equal(cache.get('key'), 'value');
+  now += 101;
+  assert.equal(cache.get('key'), undefined);
+  cache.close();
+});
+
+test('get with an explicit zero ttl always misses', () => {
+  let now = 1000;
+  const cache = new TTLCache({ filePath: path.join(root, 'zero-ttl.json'), now: () => now, flushDelayMs: 1000 });
+  cache.set('key', 'value');
+  assert.equal(cache.get('key', 0), undefined);
+  cache.close();
 });
 
 test('package has no runtime dependencies or install scripts', () => {

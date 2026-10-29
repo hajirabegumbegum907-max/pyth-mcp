@@ -107,7 +107,7 @@ test('MCP stdio server implements the protocol and Pyth tools end to end', async
     server.send({ jsonrpc: '2.0', id: listId, method: 'tools/list' });
     const list = await server.waitFor((message) => message.id === listId);
     const tools = list.result.tools;
-    expect('exactly five tools are exposed', tools.length === 5, tools.map((tool) => tool.name).join(','));
+    expect('exactly seven tools are exposed', tools.length === 7, tools.map((tool) => tool.name).join(','));
     expect('all tool schemas are closed input objects', tools.every((tool) => tool.description
       && tool.inputSchema.type === 'object' && tool.inputSchema.additionalProperties === false));
 

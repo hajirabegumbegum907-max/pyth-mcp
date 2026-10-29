@@ -13,8 +13,9 @@ Usage:
   pyth-mcp config set <key> <value> [--json]
   pyth-mcp config reset [--json]
   pyth-mcp list-prices [query] [--asset-type crypto] [--limit N] [--force-refresh] [--json]
-  pyth-mcp get-price <feed> [--force-refresh] [--cache-ttl SECONDS] [--json]
-  pyth-mcp watch <feed> [--interval MS] [--count N] [--json]
+  pyth-mcp get-price <feed> [--force-refresh] [--allow-stale] [--cache-ttl SECONDS] [--json]
+  pyth-mcp history <feed> [--limit N] [--json]
+  pyth-mcp watch <feed> [--interval MS] [--count N] [--above PRICE] [--below PRICE] [--json]
   pyth-mcp mcp-start [--root DIR]
 
 Feed references:
@@ -27,17 +28,20 @@ Configuration keys:
 
 Global options:
   --root DIR          Project root containing .pyth-mcp (default: current directory)
-  --json             Machine-readable output; watch emits one JSON object per line
-  --force-refresh    Bypass cached data
-  --cache-ttl N      Price cache TTL in seconds (default: 30)
-  --interval N       Watch polling interval in milliseconds (default: 5000)
-  --count N          Watch update count; 0 means run until interrupted
-  --help             Show this usage
-  --version          Print the package version
+  --json              Machine-readable output; watch emits one JSON object per line
+  --force-refresh     Bypass cached data
+  --allow-stale       Return the last known value when refresh fails (marked stale)
+  --cache-ttl N       Price cache TTL in seconds (default: 30)
+  --interval N        Watch polling interval in milliseconds (default: 5000)
+  --count N           Watch update count; 0 means run until interrupted
+  --above PRICE       Watch only emits when the price crosses above this value
+  --below PRICE       Watch only emits when the price crosses below this value
+  --help              Show this usage
+  --version           Print the package version
 `;
 
-const VALUE_FLAGS = new Set(['root', 'query', 'asset-type', 'limit', 'cache-ttl', 'interval', 'count']);
-const BOOL_FLAGS = new Set(['json', 'force-refresh', 'refresh', 'help', 'version']);
+const VALUE_FLAGS = new Set(['root', 'query', 'asset-type', 'limit', 'cache-ttl', 'interval', 'count', 'above', 'below']);
+const BOOL_FLAGS = new Set(['json', 'force-refresh', 'refresh', 'allow-stale', 'help', 'version']);
 
 function parse(argv) {
   const positional = [];
@@ -71,7 +75,16 @@ function print(value, opts, human) {
 }
 
 function priceLine(quote) {
-  return `${quote.symbol || quote.id}  ${quote.priceText} +/- ${quote.confidenceText}  ${quote.publishTimeIso}${quote.cached ? '  (cached)' : ''}`;
+  const flags = [];
+  if (quote.cached) flags.push('cached');
+  if (quote.stale) flags.push('stale');
+  return `${quote.symbol || quote.id}  ${quote.priceText} +/- ${quote.confidenceText}  ${quote.publishTimeIso}${flags.length ? `  (${flags.join(', ')})` : ''}`;
+}
+
+function finiteOption(value, name) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) throw new Error(`${name} must be a finite number`);
+  return number;
 }
 
 function integerOption(value, name, minimum, maximum) {
@@ -150,6 +163,7 @@ async function run(argv) {
       if (!references.length) throw new Error('get-price requires at least one feed');
       const options = {
         forceRefresh: opts['force-refresh'] === true || opts.refresh === true,
+        allowStale: opts['allow-stale'] === true,
         cacheTtlMs: opts['cache-ttl'] === undefined ? undefined : integerOption(opts['cache-ttl'], '--cache-ttl', 0, 86400) * 1000,
       };
       const output = await withClient(opts, async (client) => {
@@ -159,23 +173,53 @@ async function run(argv) {
       print(output, opts, (value) => value.prices ? value.prices.map(priceLine).join('\n') : priceLine(value));
       return 0;
     }
+    case 'history': {
+      if (!rest[0]) throw new Error('history requires a feed');
+      const limit = opts.limit === undefined ? undefined : integerOption(opts.limit, '--limit', 1, 5000);
+      const output = await withClient(opts, (client) => client.getPriceHistory(rest[0], { limit }));
+      print(output, opts, (value) => value.prices.map(priceLine).join('\n'));
+      return 0;
+    }
     case 'watch': {
       if (!rest[0]) throw new Error('watch requires a feed');
       const interval = opts.interval === undefined ? 5000 : integerOption(opts.interval, '--interval', 250, 3600000);
       const count = opts.count === undefined ? 0 : integerOption(opts.count, '--count', 0, 1000000);
+      const above = opts.above === undefined ? null : finiteOption(opts.above, '--above');
+      const below = opts.below === undefined ? null : finiteOption(opts.below, '--below');
       let interrupted = false;
       const stop = () => { interrupted = true; };
       process.once('SIGINT', stop);
+      const client = new PythClient({ rootDir: opts.root });
       try {
         let emitted = 0;
+        let lastPrice = null;
         while (!interrupted && (count === 0 || emitted < count)) {
-          const quote = await withClient(opts, (client) => client.getPrice(rest[0], { forceRefresh: true }));
-          if (opts.json) process.stdout.write(`${JSON.stringify(quote)}\n`);
-          else process.stdout.write(`${priceLine(quote)}\n`);
-          emitted += 1;
+          try {
+            const quote = await client.getPrice(rest[0], { forceRefresh: true });
+            const crossed = (above === null || (lastPrice !== null && lastPrice < above && quote.price >= above))
+              && (below === null || (lastPrice !== null && lastPrice > below && quote.price <= below));
+            lastPrice = quote.price;
+            if (above === null && below === null) {
+              if (opts.json) process.stdout.write(`${JSON.stringify(quote)}\n`);
+              else process.stdout.write(`${priceLine(quote)}\n`);
+              emitted += 1;
+            } else if (crossed) {
+              const alert = { ...quote, alert: { above, below, triggeredAt: new Date().toISOString() } };
+              if (opts.json) process.stdout.write(`${JSON.stringify(alert)}\n`);
+              else process.stdout.write(`ALERT ${priceLine(quote)}\n`);
+              emitted += 1;
+            }
+          } catch (error) {
+            const report = { error: { code: error.code || 'PYTH_ERROR', message: error.message || String(error) }, at: new Date().toISOString() };
+            if (opts.json) process.stdout.write(`${JSON.stringify(report)}\n`);
+            else process.stdout.write(`error: ${report.error.message}\n`);
+          }
           if (!interrupted && (count === 0 || emitted < count)) await new Promise((resolve) => setTimeout(resolve, interval));
         }
-      } finally { process.removeListener('SIGINT', stop); }
+      } finally {
+        process.removeListener('SIGINT', stop);
+        client.close();
+      }
       return 0;
     }
     case 'mcp-start':

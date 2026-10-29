@@ -1,9 +1,10 @@
 {
   "name": "pyth-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Zero-dependency Pyth Network Hermes price feeds, feed catalog, TTL cache, CLI, and MCP stdio server",
   "license": "MIT",
   "main": "./index.js",
+  "types": "./types/index.d.ts",
   "bin": {
     "pyth-mcp": "./bin/cli.js"
   },
@@ -18,6 +19,7 @@
   "files": [
     "bin/",
     "lib/",
+    "types/",
     "index.js",
     "mcp-server.js",
     "README.md",

@@ -44,9 +44,9 @@ async function cliJson(args) {
 test('help and version expose all required commands', async () => {
   const help = await cli(['--help']);
   assert.equal(help.status, 0);
-  for (const command of ['init', 'config', 'list-prices', 'get-price', 'watch', 'mcp-start']) assert.match(help.stdout, new RegExp(command));
+  for (const command of ['init', 'config', 'list-prices', 'get-price', 'history', 'watch', 'mcp-start']) assert.match(help.stdout, new RegExp(command));
   const version = await cli(['--version']);
-  assert.equal(version.stdout.trim(), '1.0.0');
+  assert.equal(version.stdout.trim(), require('../package.json').version);
 });
 
 test('init creates a project-local state directory', async () => {
