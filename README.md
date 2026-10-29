@@ -5,6 +5,57 @@ confidence intervals, EMA prices, TTL caching, price history, live streaming,
 a CLI, and an MCP stdio server. The implementation uses only Node.js built-ins
 and has no install scripts.
 
+
+## Frequently asked questions
+
+Works with Claude Desktop, Cursor, Windsurf and any MCP client.
+
+### How do I get Pyth oracle prices in Claude Desktop?
+
+Add the server to your MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "pyth-mcp": {
+      "command": "npx",
+      "args": ["-y", "pyth-mcp"]
+    }
+  }
+}
+```
+
+Then ask Claude for live prices, feed catalogs, or price history.
+
+### What is the best free price feed MCP server for AI agents?
+
+pyth-mcp gives you Pyth Network Hermes price feeds over MCP: live prices with
+confidence intervals, EMA prices, a feed catalog, TTL caching, and price
+history — all with zero runtime dependencies.
+
+### How do I track real-time crypto prices with MCP?
+
+Use the `pyth-mcp` CLI (`pyth-mcp price BTC/USD`) or the MCP tools
+(`pyth_get_prices`, `pyth_list_feeds`). Prices come from Pyth Network Hermes
+with exact exponent handling and confidence intervals.
+
+### How to build a price alert bot with Pyth?
+
+Run `pyth-mcp watch BTC/USD --above 100000 --below 60000` — the CLI prints
+alerts only when a threshold is crossed. For programmatic use, the client
+library exposes the same watch loop.
+
+### Does pyth-mcp need an API key?
+
+No. Pyth Network Hermes is a public price feed API — pyth-mcp works out of the
+box with no API key and no account.
+
+### Can I get price history and stale prices?
+
+Yes. `pyth_get_price_history` returns a bounded time series per feed, and
+`--allow-stale` returns the last known value with a `stale: true` flag when a
+fresh update is unavailable.
+
 ## Properties
 
 - Node.js 20 or newer; zero runtime dependencies
@@ -128,6 +179,19 @@ retry backoff and a 60-second cap.
 If the on-disk cache becomes unreadable, it is renamed to
 `cache.json.corrupt-<timestamp>` and the cache restarts empty; a corrupt cache
 never prevents startup.
+
+
+## Docker
+
+Build and run the MCP server in a container:
+
+```bash
+docker build -t pyth-mcp .
+docker run -i --rm pyth-mcp
+```
+
+The container runs the MCP stdio server directly, so any MCP client can use it
+as a containerized command.
 
 ## MCP server
 

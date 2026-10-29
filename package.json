@@ -32,10 +32,37 @@
     "pyth",
     "pyth-network",
     "oracle",
-    "hermes",
+    "oracle-network",
     "price-feed",
+    "price-feeds",
+    "hermes",
+    "crypto-price",
+    "crypto-prices",
+    "real-time-price",
+    "price-data",
+    "market-data",
+    "defi",
+    "defi-oracle",
+    "web3",
+    "blockchain",
+    "price-tracker",
+    "price-alert",
+    "price-history",
+    "price-api",
+    "solana-price",
+    "ethereum-price",
+    "bitcoin-price",
     "mcp",
-    "model-context-protocol"
+    "mcp-server",
+    "model-context-protocol",
+    "claude",
+    "cursor",
+    "llm",
+    "ai-agent",
+    "ai-tools",
+    "nodejs",
+    "javascript",
+    "typescript"
   ],
   "scripts": {
     "start": "node mcp-server.js",
@@ -44,5 +71,14 @@
     "test:packed": "node test/packed-artifact.js",
     "test:live": "node test/live-smoke.js",
     "test:all": "npm test && npm run test:packed"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hajirabegumbegum907-max/pyth-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hajirabegumbegum907-max/pyth-mcp/issues"
+  },
+  "homepage": "https://github.com/hajirabegumbegum907-max/pyth-mcp#readme",
+  "author": "hajirabegumbegum907-max"
 }
